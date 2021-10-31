@@ -1,0 +1,23 @@
+{
+  "name": "editor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "electr.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^11.0.1"
+  },
+  "dependencies": {
+    "@brunohpaiva/osu-parser": "^0.2.3",
+    "cors": "^2.8.5",
+    "dat.gui": "^0.7.7",
+    "electron-reload": "^1.5.0",
+    "express": "^4.17.1",
+    "jQuery": "^1.7.4",
+    "sweetalert2": "^10.16.0"
+  }
+}

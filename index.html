@@ -1,0 +1,236 @@
+<html>
+  <head>
+    <title>Dropout 5</title>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.3.0/lib/p5.js"></script>
+    <script src="./modules/editorCanvas.js"></script>
+    <script src="./modules/replayLoader.js"></script>
+    <script src="./modules/upperTimeline.js"></script>
+    <script src="./modules/lowerTimeline.js"></script>
+    <script src="./modules/preloader.js"></script>
+    <script src="./modules/sliders.js"></script>
+    <script src="./renderer.js"></script>
+
+
+
+    <!-- OsuPreview Variables -->
+
+    <div id="container" class="x-viewbox"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
+    <script src="./osupreview/js/util.js"></script>
+  
+    <script src="./osupreview/js/beatmap/beatmap.js"></script>
+    <script src="./osupreview/js/beatmap/timingpoint.js"></script>
+    <script src="./osupreview/js/beatmap/hitobject.js"></script>
+    <script src="./osupreview/js/beatmap/point.js"></script>
+    <script src="./osupreview/js/beatmap/scroll.js"></script>
+  
+    <script src="./osupreview/js/standard/standard.js"></script>
+    <script src="./osupreview/js/standard/hitcircle.js"></script>
+    <script src="./osupreview/js/standard/slider.js"></script>
+    <script src="./osupreview/js/standard/curve/curve.js"></script>
+    <script src="./osupreview/js/standard/curve/equaldistancemulticurve.js"></script>
+    <script src="./osupreview/js/standard/curve/linearbezier.js"></script>
+    <script src="./osupreview/js/standard/curve/catmullcurve.js"></script>
+    <script src="./osupreview/js/standard/curve/curvetype.js"></script>
+    <script src="./osupreview/js/standard/curve/bezier2.js"></script>
+    <script src="./osupreview/js/standard/curve/centripetalcatmullrom.js"></script>
+    <script src="./osupreview/js/standard/curve/circumstancedcircle.js"></script>
+    <script src="./osupreview/js/standard/spinner.js"></script>
+  
+    <script src="./osupreview/js/taiko/taiko.js"></script>
+    <script src="./osupreview/js/taiko/donkat.js"></script>
+    <script src="./osupreview/js/taiko/drumroll.js"></script>
+    <script src="./osupreview/js/taiko/shaker.js"></script>
+  
+    <script src="./osupreview/js/mania/mania.js"></script>
+    <script src="./osupreview/js/mania/hitnote.js"></script>
+    <script src="./osupreview/js/mania/holdnote.js"></script>
+  
+    <script src="./osupreview/js/preview.js"></script>
+    <script src="./osupreview/js/viewbox.js"></script>
+    
+    <style>
+        body{
+            margin:0;
+            overflow: hidden;
+            background-color: #F6F6F6;
+        }
+
+        #container {
+          /* background-color: black; */
+          position: absolute;
+          z-index: -1;
+        }
+    </style>
+  </head>
+  <body>
+    <script>
+      var audio = new Audio();
+      var preview
+
+      
+function ready(diff,id){
+  const $ = require('jQuery')
+    preview = new Preview($('#container')[0]);
+        
+        
+
+        $(window).on('hashchange', function () {
+            $(audio).trigger('pause');
+
+            $('#mania').removeClass('e');
+
+            $('#play').removeClass('e');
+
+            var beatmapID = isNaN(location.hash.split('#')[1]) ? 75 : location.hash.split('#')[1];
+            var setID;
+            var beatmapsetdata;
+            var osufiledata;
+            !async function () {
+                var self = this;
+                let data = await fetch("http://localhost:3000/api")
+                    .then((response) => response.text())
+                    .then(data => {
+                        var audiofile = `http://localhost:3000/api/?id=${id}&sd=${diff.replace(/&/g,'%26')}&type=audio`                        
+                        var bgURL = 'https://i.imgur.com/GyqEZHR.png'
+                        var osuURL = `http://localhost:3000/api/?id=${id}&sd=${diff.replace(/&/g,'%26')}&type=beatmap`
+                        console.log(audiofile,osuURL)
+                        preview.load(beatmapID, bgURL, osuURL, function () {
+                            audio.src = audiofile;
+                            loaded = true;
+                            timeline.analyze()
+                            lower_timeline.redraw()
+                            initSliders()
+                            $('#title a').prop('href', '//osu.ppy.sh/b/' + beatmapID)
+                                .text(this.beatmap.toString());
+                            if (self.beatmap instanceof Mania) {
+                                $('#mania').addClass('e');
+                                $('#scroll').text(self.beatmap.scrollSpeed);
+                            }
+                            $('#play').addClass('e');
+                        }, function (e) {
+                            alert(e);
+                            console.log(e);
+                        }); 
+
+                        return data.ParentSetID;
+                    }).catch(error => {
+                        console.error(error);
+                    });
+            }();
+        }).trigger('hashchange');
+
+        $(document.body).on('mousemove', function () {
+            var self = $(this);
+            clearTimeout(self.data('h'));
+            self.addClass('h').data('h', setTimeout(function () {
+                if (!audio.paused) {
+                    self.removeClass('h');
+                }
+            }, 3000));
+        });
+
+        $(audio).on('pause', function (e) {
+            $(document.body).trigger('mousemove');
+            $('#play').addClass('e');
+        }).on('play', function (e) {
+            preview.beatmap.refresh();
+            if (e.isTrigger) {
+                e.preventDefault();
+                preview.at(audio.currentTime * 1000);
+            }
+            else {
+                $('#play').removeClass('e');
+                requestAnimationFrame(function foo() {
+                    preview.at(audio.currentTime * 1000);
+                    if (!audio.paused) {
+                        requestAnimationFrame(foo);
+                    }
+                });
+            }
+        }).on('durationchange', function () {
+            $('#progress').val(0).prop('max', this.duration);
+            $('#volume').trigger('change');
+            $('#speed .e').trigger('click');
+        }).on('timeupdate', function () {
+            $('#progress').val(this.currentTime);
+        });
+
+        $('#progress').on('change', function () {
+            audio.currentTime = this.value;
+            $(audio).trigger('play');
+        });
+
+        $('#volume').on('change', function () {
+            audio.volume = this.value / 100;
+        });
+
+        $('#speed button').on('click', function () {
+            $('#speed .e').removeClass('e');
+            audio.playbackRate = $(this).addClass('e').val();
+        });
+
+        $('#mania button').on('click', function () {
+            var val = this.value | 0;
+            if (val) {
+                preview.beatmap.scrollSpeed += val;
+                $('#scroll').text(preview.beatmap.scrollSpeed);
+                $(audio).trigger('play');
+            }
+        });
+
+        $('#play').on('click', function (e) {
+            e.preventDefault();
+            if ($(this).hasClass('e')) {
+                audio.play();
+            }
+            else {
+                audio.pause();
+            }
+        });
+
+        $('#fullscreen').on('click', function (e) {
+            e.preventDefault();
+            var doc = window.document;
+            var docEl = doc.documentElement;
+
+            var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+            var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+            if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+                requestFullScreen.call(docEl);
+            }
+            else {
+                cancelFullScreen.call(doc);
+            }
+        });
+
+    
+}
+
+  </script>
+
+
+<div class = "dragger" style="-webkit-app-region: drag">
+
+</div>
+
+<style>
+    .dragger{
+        position:absolute;
+        width:80%;
+        height:24px;
+    }
+    body{
+        margin:0;
+        overflow: hidden;
+    }
+    #gui { position: absolute; top: 65px; right: 10px }
+</style>
+
+    <script>
+        
+    </script>
+  </body>
+</html>
